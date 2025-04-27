@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TouchableOpacity, Animated, Alert, useColorScheme, FlatList, TextInput } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Animated, Alert, useColorScheme, FlatList } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ProgressBar } from 'react-native-paper'; 
@@ -217,6 +217,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+    backgroundColor: '#e0f7fa', // Apply a light gradient or a refreshing color
   },
   splashText: {
     fontSize: 28,
@@ -233,11 +234,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
+    backgroundColor: '#fff',
   },
   title: {
     fontSize: 36,
     marginBottom: 10,
     fontWeight: 'bold',
+    color: '#00796b',
   },
   counter: {
     fontSize: 48,
