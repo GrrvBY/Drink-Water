@@ -1,9 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TouchableOpacity, Animated, Alert, useColorScheme, FlatList } from 'react-native';
+import {
+  StyleSheet, Text, View, TouchableOpacity,
+  Animated, Alert, useColorScheme, FlatList, ActivityIndicator, SafeAreaView
+} from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ProgressBar } from 'react-native-paper'; 
-import Toast from 'react-native-toast-message'; 
+import { ProgressBar } from 'react-native-paper';
+import Toast from 'react-native-toast-message';
 import { Notifications } from 'expo-notifications';
 
 export default function App() {
@@ -12,12 +15,22 @@ export default function App() {
   const [history, setHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dailyAverage, setDailyAverage] = useState(0);
+  const [quote, setQuote] = useState("");
   const scale = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const colorScheme = useColorScheme();
 
+  const quotes = [
+    "Woda to życie. Pij, by żyć zdrowo! 💧",
+    "Nawodniony mózg to lepsze myślenie 🧠",
+    "Zacznij dzień od szklanki wody!",
+    "Dbaj o siebie, zacznij od wody 💙",
+    "Twoje ciało ci podziękuje 🚿"
+  ];
+
   useEffect(() => {
-    setTimeout(() => setIsLoading(false), 2000); // Splash screen 2s
+    setQuote(quotes[Math.floor(Math.random() * quotes.length)]);
+    setTimeout(() => setIsLoading(false), 2000); // Splash screen
     loadData();
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -44,7 +57,18 @@ export default function App() {
       await AsyncStorage.setItem('waterCount', waterCount.toString());
       await AsyncStorage.setItem('goal', goal.toString());
       const today = new Date().toISOString().split('T')[0];
-      const updatedHistory = [...history.filter(h => h.date !== today), { date: today, count: waterCount }];
+      const time = new Date().toLocaleTimeString();
+
+      let updatedHistory = history.map(item =>
+        item.date === today
+          ? { ...item, count: waterCount, times: [...(item.times || []), time] }
+          : item
+      );
+
+      if (!updatedHistory.find(item => item.date === today)) {
+        updatedHistory.push({ date: today, count: waterCount, times: [time] });
+      }
+
       setHistory(updatedHistory);
       await AsyncStorage.setItem('history', JSON.stringify(updatedHistory));
     } catch (error) {
@@ -76,33 +100,25 @@ export default function App() {
   };
 
   const resetWater = () => {
-    Alert.alert(
-      "Reset Licznika",
-      "Czy na pewno chcesz zresetować licznik?",
-      [
-        { text: "Anuluj", style: "cancel" },
-        { text: "Resetuj", style: "destructive", onPress: () => setWaterCount(0) }
-      ]
-    );
+    Alert.alert("Reset Licznika", "Czy na pewno chcesz zresetować licznik?", [
+      { text: "Anuluj", style: "cancel" },
+      { text: "Resetuj", style: "destructive", onPress: () => setWaterCount(0) }
+    ]);
   };
 
   const resetHistory = () => {
-    Alert.alert(
-      "Reset Historii",
-      "Czy na pewno chcesz zresetować całą historię?",
-      [
-        { text: "Anuluj", style: "cancel" },
-        { text: "Resetuj", style: "destructive", onPress: () => setHistory([]) }
-      ]
-    );
+    Alert.alert("Reset Historii", "Czy na pewno chcesz zresetować całą historię?", [
+      { text: "Anuluj", style: "cancel" },
+      { text: "Resetuj", style: "destructive", onPress: () => setHistory([]) }
+    ]);
   };
 
   const progress = Math.min(waterCount / goal, 1);
 
   const calculateDailyAverage = () => {
-    const last7Days = history.slice(-7); // Take last 7 days
+    const last7Days = history.slice(-7);
     const totalWater = last7Days.reduce((acc, curr) => acc + curr.count, 0);
-    setDailyAverage(totalWater / last7Days.length);
+    setDailyAverage(last7Days.length ? totalWater / last7Days.length : 0);
   };
 
   const checkLowWaterIntake = () => {
@@ -121,7 +137,7 @@ export default function App() {
         title: "Pamiętaj o piciu wody! 💧",
         body: "Czas na kolejną szklankę wody!",
       },
-      trigger: { seconds: 3600 }, // reminder every hour
+      trigger: { seconds: 3600 },
     });
   };
 
@@ -129,15 +145,17 @@ export default function App() {
     return (
       <View style={[styles.container, { backgroundColor: colorScheme === 'dark' ? '#121212' : '#e0f7fa' }]}>
         <Text style={styles.splashText}>💧 Witaj w Water Tracker!</Text>
+        <ActivityIndicator size="large" color="#00bfa5" style={{ marginTop: 20 }} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colorScheme === 'dark' ? '#121212' : '#e0f7fa' }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colorScheme === 'dark' ? '#121212' : '#e0f7fa' }]}>
       <Animated.View style={[styles.card, { opacity: fadeAnim, backgroundColor: colorScheme === 'dark' ? '#1e1e1e' : '#ffffff' }]}>
         <Text style={[styles.title, { color: colorScheme === 'dark' ? '#00e5ff' : '#00796b' }]}>💧 Licznik Wody</Text>
-        
+        <Text style={{ fontSize: 16, fontStyle: 'italic', color: '#888', marginBottom: 10 }}>{quote}</Text>
+
         <Animated.Text style={[styles.counter, { transform: [{ scale }], color: colorScheme === 'dark' ? '#80deea' : '#004d40' }]}>
           {waterCount} / {goal} szklanek
         </Animated.Text>
@@ -155,24 +173,18 @@ export default function App() {
         </View>
 
         <TouchableOpacity style={styles.setGoalButton} onPress={() => {
-          Alert.prompt(
-            "Nowy Cel",
-            "Podaj nową liczbę szklanek:",
-            [
-              { text: "Anuluj", style: "cancel" },
-              {
-                text: "Ustaw",
-                onPress: (text) => {
-                  const number = parseInt(text);
-                  if (!isNaN(number) && number > 0) {
-                    setGoal(number);
-                    setWaterCount(0);
-                  }
+          Alert.prompt("Nowy Cel", "Podaj nową liczbę szklanek:", [
+            { text: "Anuluj", style: "cancel" },
+            {
+              text: "Ustaw", onPress: (text) => {
+                const number = parseInt(text);
+                if (!isNaN(number) && number > 0) {
+                  setGoal(number);
+                  setWaterCount(0);
                 }
               }
-            ],
-            'plain-text'
-          );
+            }
+          ], 'plain-text');
         }}>
           <Text style={styles.setGoalText}>🎯 Ustaw nowy cel</Text>
         </TouchableOpacity>
@@ -180,12 +192,17 @@ export default function App() {
         <View style={{ marginTop: 30, width: '100%' }}>
           <Text style={[styles.historyTitle, { color: colorScheme === 'dark' ? '#00e5ff' : '#00796b' }]}>📅 Historia</Text>
           <FlatList
-            data={history}
+            data={history.slice().reverse()}
             keyExtractor={(item) => item.date}
             renderItem={({ item }) => (
-              <Text style={{ color: colorScheme === 'dark' ? '#ffffff' : '#004d40', fontSize: 16, marginVertical: 2 }}>
-                {item.date}: {item.count} szklanek
-              </Text>
+              <View style={{ marginBottom: 10 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 16, color: colorScheme === 'dark' ? '#ffffff' : '#004d40' }}>
+                  {item.date}: {item.count} szklanek
+                </Text>
+                {item.times && item.times.map((time, index) => (
+                  <Text key={index} style={{ fontSize: 14, color: '#888' }}>⏰ {time}</Text>
+                ))}
+              </View>
             )}
           />
         </View>
@@ -202,22 +219,20 @@ export default function App() {
         <TouchableOpacity style={styles.setReminderButton} onPress={setReminder}>
           <Text style={styles.setReminderText}>Ustaw przypomnienie</Text>
         </TouchableOpacity>
-
       </Animated.View>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <Toast />
-    </View>
+    </SafeAreaView>
   );
 }
 
-// STYLE
+// --- STYLES ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
-    backgroundColor: '#e0f7fa', // Apply a light gradient or a refreshing color
   },
   splashText: {
     fontSize: 28,
@@ -227,20 +242,18 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     borderRadius: 20,
-    padding: 30,
+    padding: '5%',
     alignItems: 'center',
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
-    backgroundColor: '#fff',
   },
   title: {
     fontSize: 36,
     marginBottom: 10,
     fontWeight: 'bold',
-    color: '#00796b',
   },
   counter: {
     fontSize: 48,
